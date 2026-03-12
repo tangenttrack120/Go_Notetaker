@@ -51,6 +51,63 @@ func createNote(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Note added successfully to DB!")
 }
 
+func deleteNote(w http.ResponseWriter, r *http.Request) {
+	// Get the note ID from the URL query parameters (e.g., /api/notes?id=123)
+	noteID := r.URL.Query().Get("id")
+	if noteID == "" {
+		http.Error(w, "Missing note ID", http.StatusBadRequest)
+		return
+	}
+
+	// Write the SQL query to delete a note by its ID
+	query := `DELETE FROM notes WHERE id = $1`
+
+	// Execute the query, passing in the note ID. '.Exec()' is used for SQL statements that don't return rows (like INSERT, UPDATE, DELETE)
+	_, err := db.Exec(context.Background(), query, noteID)
+	if err != nil {
+		fmt.Printf("Unable to delete note: %v\n", err)
+		http.Error(w, "Failed to delete note", http.StatusInternalServerError)
+		return
+	}
+
+	// Tell the frontend that the resource was deleted successfully (Status 200)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Note successfully deleted!"))
+}
+
+func updateNote(w http.ResponseWriter, r *http.Request) {
+	// Get the note ID from the URL query parameters (e.g., /api/notes?id=123)
+	noteID := r.URL.Query().Get("id")
+	if noteID == "" {
+		http.Error(w, "Missing note ID", http.StatusBadRequest)
+		return
+	}
+
+	updatedNote := Note{}
+
+	// Decode the JSON body of the request into a new Note struct. If there's an error, send a 400 Bad Request response back to the client.
+	err := json.NewDecoder(r.Body).Decode(&updatedNote)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Write the SQL query to update a note by its ID
+	query := `UPDATE notes SET title = $1, description = $2 WHERE id = $3`
+
+	// Execute the query, passing in the updated title, description, and note ID. '.Exec()' is used for SQL statements that don't return rows (like INSERT, UPDATE, DELETE)
+	_, err = db.Exec(context.Background(), query, updatedNote.Title, updatedNote.Description, noteID)
+	if err != nil {
+		fmt.Printf("Unable to update note: %v\n", err)
+		http.Error(w, "Failed to update note", http.StatusInternalServerError)
+		return
+	}
+
+	// Tell the frontend that the resource was updated successfully (Status 200)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Note successfully updated!"))
+}
+
 func getNotes(w http.ResponseWriter, r *http.Request) {
 	// Write the SQL query to get all the notes, ordered by latest creation date
 	query := `SELECT id, title, description, created_at FROM notes ORDER BY created_at DESC`
@@ -121,16 +178,30 @@ func main() {
 	// --------------------------------
 
 	// The Traffic Cop Router
+	// The Upgraded Traffic Cop Router
 	http.HandleFunc("/api/notes", func(w http.ResponseWriter, r *http.Request) {
+		// 1. Set the CORS headers for EVERY request
+		w.Header().Set("Access-Control-Allow-Origin", "*") // Allow any port to connect
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS") // Allow these methods
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type") // Allow the JSON content type
+
+		// 2. Handle the Preflight Check
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK) // Smile and wave at the browser
+			return                       // Stop running the rest of the function
+		}
+
+		// 3. Handle the actual data requests
 		switch r.Method {
 		case http.MethodGet:
-			// If it's a GET request, fetch the notes!
 			getNotes(w, r)
 		case http.MethodPost:
-			// If it's a POST request, create a new note!
 			createNote(w, r)
+		case http.MethodDelete:
+			deleteNote(w, r)
+		case http.MethodPut:
+			updateNote(w, r)
 		default:
-			// If they try to PUT or DELETE (which we haven't built yet), tell them no.
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
