@@ -19,6 +19,7 @@ type Note struct {
 	ID int
 	Title string
 	Description string
+	Tag string
 	CreatedAt time.Time
 }
 
@@ -33,10 +34,10 @@ func createNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write the SQL query to insert a new note into the database
-	query := `INSERT INTO notes (TITLE, DESCRIPTION) VALUES ($1, $2)`
+	query := `INSERT INTO notes (TITLE, DESCRIPTION, TAG) VALUES ($1, $2, $3)`
 
 	// Execute the query, passing in the title and description from the newNote struct. '.Exec()' is used for SQL statements that don't return rows (like INSERT, UPDATE, DELETE)
-	_, err = db.Exec(context.Background(), query, newNote.Title, newNote.Description)
+	_, err = db.Exec(context.Background(), query, newNote.Title, newNote.Description, newNote.Tag)
 	if err != nil {
 		fmt.Printf("Unable to insert note: %v\n", err)
 		return
@@ -93,10 +94,10 @@ func updateNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Write the SQL query to update a note by its ID
-	query := `UPDATE notes SET title = $1, description = $2 WHERE id = $3`
+	query := `UPDATE notes SET title = $1, description = $2, tag = $3 WHERE id = $4`
 
-	// Execute the query, passing in the updated title, description, and note ID. '.Exec()' is used for SQL statements that don't return rows (like INSERT, UPDATE, DELETE)
-	_, err = db.Exec(context.Background(), query, updatedNote.Title, updatedNote.Description, noteID)
+	// Execute the query, passing in the updated title, description, tag, and note ID. '.Exec()' is used for SQL statements that don't return rows (like INSERT, UPDATE, DELETE)
+	_, err = db.Exec(context.Background(), query, updatedNote.Title, updatedNote.Description, updatedNote.Tag, noteID)
 	if err != nil {
 		fmt.Printf("Unable to update note: %v\n", err)
 		http.Error(w, "Failed to update note", http.StatusInternalServerError)
@@ -110,7 +111,7 @@ func updateNote(w http.ResponseWriter, r *http.Request) {
 
 func getNotes(w http.ResponseWriter, r *http.Request) {
 	// Write the SQL query to get all the notes, ordered by latest creation date
-	query := `SELECT id, title, description, created_at FROM notes ORDER BY created_at DESC`
+	query := `SELECT id, title, description, tag, created_at FROM notes ORDER BY created_at DESC`
 
 	// Execute the query and get the rows back, '.Query()' is used for SQL statements that return a set of rows
 	rows, err := db.Query(context.Background(), query)
@@ -125,7 +126,7 @@ func getNotes(w http.ResponseWriter, r *http.Request) {
 	// Loop through the rows returned by the query. For each row, create a new Note struct and scan the values from the row into the struct fields. If there's an error scanning a row, log it and return.
 	for rows.Next() {
 		var note Note
-		err := rows.Scan(&note.ID, &note.Title, &note.Description, &note.CreatedAt)
+		err := rows.Scan(&note.ID, &note.Title, &note.Description, &note.Tag, &note.CreatedAt)
 		if err != nil {
 			fmt.Printf("Unable to scan note: %v\n", err)
 			return
@@ -142,7 +143,7 @@ func main() {
 	// Load environment variables from the .env file. If there's an error, log it and exit the program.
 	err := godotenv.Load("../.env") 
 	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+		fmt.Println("Notice: No .env file found. Relying on system environment variables.")
 	}
 
 	// Create a new connection pool to the PostgreSQL database using the connection string from the environment variable 'DBURL'. If there's an error, log it and exit the program.
@@ -166,6 +167,7 @@ func main() {
 		ID SERIAL PRIMARY KEY,
 		TITLE VARCHAR(255) NOT NULL,
 		DESCRIPTION TEXT NOT NULL,
+		TAG VARCHAR(50) DEFAULT 'General',
 		CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 	);`
 
@@ -206,6 +208,12 @@ func main() {
 		}
 	})
 
-	fmt.Println("Server starting on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// Get the port from the cloud provider, or fallback to 8080 for local dev
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" 
+	}
+
+	fmt.Printf("Server starting on port %s...\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

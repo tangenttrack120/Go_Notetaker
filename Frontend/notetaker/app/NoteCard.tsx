@@ -10,6 +10,7 @@ type Note = {
   ID: number;
   Title: string;
   Description: string;
+  Tag: string; // <-- Add this!
   CreatedAt: string;
 };
 
@@ -25,16 +26,20 @@ export default function NoteCard({ note }: { note: Note }) {
 
   const handleUpdate = async () => {
     // Fire the PUT request to your Go backend, passing the ID in the URL just like your Go code expects!
-    const res = await fetch(`http://localhost:8080/api/notes?id=${note.ID}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
+    const res = await fetch(
+      `https://scientific-puma-tangenttrack-179f8ff0.koyeb.app/api/notes?id=${note.ID}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          Title: editTitle,
+          Description: editDescription,
+          Tag: note.Tag, // Include the tag in the update
+        }),
       },
-      body: JSON.stringify({
-        Title: editTitle,
-        Description: editDescription,
-      }),
-    });
+    );
 
     if (res.ok) {
       setIsEditing(false); // Turn off edit mode
@@ -81,6 +86,14 @@ export default function NoteCard({ note }: { note: Note }) {
   // --- VIEW MODE UI ---
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+      {/* The new Tag Badge! */}
+      <span className="inline-block bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full font-bold mb-3 uppercase tracking-wide">
+        {note.Tag || "General"}
+      </span>
+
+      <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+        {note.Title}
+      </h2>
       <h2 className="text-2xl font-semibold text-gray-800 mb-2">
         {note.Title}
       </h2>

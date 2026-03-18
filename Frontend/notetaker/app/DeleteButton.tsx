@@ -11,9 +11,12 @@ export default function DeleteButton({ id }: { id: number }) {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
 
     // Fire the DELETE request to your Go backend, passing the ID in the URL
-    const res = await fetch(`http://localhost:8080/api/notes?id=${id}`, {
-      method: "DELETE",
-    });
+    const res = await fetch(
+      `https://scientific-puma-tangenttrack-179f8ff0.koyeb.app/api/notes?id=${id}`,
+      {
+        method: "DELETE",
+      },
+    );
 
     if (res.ok) {
       router.refresh(); // Tell the page to refetch the data from Go
