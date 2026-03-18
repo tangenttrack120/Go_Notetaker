@@ -14,13 +14,14 @@ type Note = {
 
 // This component accepts the notes fetched by the server as a "prop"
 export default function NoteDashboard({ notes }: { notes: Note[] }) {
-  // 1. State to remember what the user is typing in the search box
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 2. Filter the notes array before we map it to the screen
-  const filteredNotes = notes.filter((note) => {
+  // SAFETY FIX: If Go sends back 'null', force it to be an empty array
+  const safeNotes = Array.isArray(notes) ? notes : [];
+
+  // Use 'safeNotes' instead of 'notes' here
+  const filteredNotes = safeNotes.filter((note) => {
     const lowerCaseQuery = searchQuery.toLowerCase();
-    // Return true if the query matches the title OR the description
     return (
       note.Title.toLowerCase().includes(lowerCaseQuery) ||
       note.Description.toLowerCase().includes(lowerCaseQuery)
